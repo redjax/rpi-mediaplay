@@ -1,0 +1,9 @@
+# Ignore dynaconf secret files
+.secrets.*
+
+!.secrets.example.toml
+
+.data
+
+targets/*.json
+!targets/example.json

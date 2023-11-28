@@ -1,0 +1,12 @@
+[default]
+
+env = "prod"
+container_env = false
+log_level = "INFO"
+
+[dev]
+
+env = "dev"
+log_level = "DEBUG"
+
+[prod]

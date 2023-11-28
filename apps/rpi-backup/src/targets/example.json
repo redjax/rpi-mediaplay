@@ -1,0 +1,6 @@
+{
+    "name": "example-identifier",
+    "hostname": "192.168.1.10",
+    "user": "osmc",
+    "ssh_keyfile": ".data/ssh/keypairs/example-identifer/id_rsa"
+}

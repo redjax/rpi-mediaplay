@@ -1,0 +1,49 @@
+[project]
+name = ""
+version = ""
+description = ""
+authors = [
+    {name = "redjax", email = "no@no.com"},
+]
+dependencies = [
+    "red-utils>=0.2.7",
+    "dynaconf>=3.2.4",
+    "paramiko>=3.3.1",
+    "loguru>=0.7.2",
+    "msgpack>=1.0.7",
+    "pydantic>=2.5.2",
+    "pydantic-settings>=2.1.0",
+]
+requires-python = ">=3.11"
+readme = "README.md"
+license = {text = "MIT"}
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "black>=23.11.0",
+    "ruff>=0.1.6",
+]
+
+[tool.pdm.scripts]
+
+###############
+# Format/Lint #
+###############
+
+# Lint with black & ruff
+lint = { shell = "pdm run ruff check . --fix && pdm run black ." }
+# Check only, don't fix
+check = { cmd = "black ." }
+# Check and fix
+format = { cmd = "ruff check . --fix" }
+
+######################
+# Export Requirement #
+######################
+
+#  Export production requirements
+export = { cmd = "pdm export --prod -o requirements.txt --without-hashes" }
+#  Export only development requirements
+export-dev = { cmd = "pdm export -d -o requirements.dev.txt --without-hashes" }
+## Uncomment if/when using a CI group
+# export-ci = { cmd = "pdm export -G ci -o requirements.ci.txt --without-hashes" }

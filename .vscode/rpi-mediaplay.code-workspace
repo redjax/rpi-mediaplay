@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "..",
+			"name": "Git Root"
+		},
+		{
+			"path": "../apps/rpi-backup/",
+			"name": "RPI Backup"
+		}
+	]
+}
