@@ -7,3 +7,4 @@ CACHE_DIR: Path = Path(".cache")
 SERIALIZE_DIR: Path = Path(".serialize")
 
 SSH_KEY_OUTPUT_DIR: Path = Path(f"{DATA_DIR}/ssh_keypairs")
+TARGETS_DIR: Path = Path("targets")
