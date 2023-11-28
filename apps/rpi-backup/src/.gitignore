@@ -4,6 +4,7 @@
 !.secrets.example.toml
 
 .data
+ssh_keypairs/
 
 targets/*.json
 !targets/example.json
