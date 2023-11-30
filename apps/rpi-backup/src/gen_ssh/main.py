@@ -90,7 +90,9 @@ def copy_ssh_keys(host: RemoteHostSSH = None) -> bool:
         log.info(
             f"Successfully copied SSH key {host.public_key} to host {host.hostname}"
         )
-        log.debug(f"STDOUT: {stdout}")
+
+        if stdout:
+            log.debug(f"STDOUT: {stdout}")
         if stderr:
             log.debug(f"STDERR: {stderr}")
 

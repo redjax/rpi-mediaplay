@@ -196,3 +196,29 @@ def sftp_crawl(
         pass
 
     return sftp_res
+
+
+def test_connection(
+    host: RemoteHostSSH = None,
+    cmd: str | None = "echo '[REMOTE CONNECTION TEST] Hostname:' $HOSTNAME",
+) -> bool:
+    if host is None:
+        raise ValueError("Missing RemoteHostSSH object")
+    if cmd is None:
+        raise ValueError("Missing SSH command to test")
+
+    log.info(f"Testing connectivity with hostname command")
+    try:
+        test_ssh = ssh_exec(
+            remote_host=host,
+            cmd="echo '[REMOTE CONNECTION TEST] Hostname:' $HOSTNAME",
+        )
+        log.debug(test_ssh.stdout)
+
+        return True
+
+    except Exception as exc:
+        msg = Exception(f"Unhandled exception performing hostname test. Details: {exc}")
+        log.error(msg)
+
+        return False

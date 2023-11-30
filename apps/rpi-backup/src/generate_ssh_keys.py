@@ -21,6 +21,34 @@ from utils.path_utils import load_host_configs
 from utils.debug_utils import dbg_hosts
 from utils import sshlib
 
+
+def gen_copy_ssh_keys(host: RemoteHostSSH | None = None) -> bool:
+    if not host.keyfiles_dir.exists():
+        log.info(f"Host keyfiles do not exist at {host.keyfiles_dir}. Generating keys.")
+        gen_keys_res = generate_keys(host.private_key)
+
+        if not gen_keys_res:
+            log.error(f"Unable to generate SSH keys")
+            exit(1)
+
+    else:
+        log.info(f"Host [{host.name}] keyfile directory exists at {host.keyfiles_dir}")
+        if host.private_key.exists() and host.public_key.exists():
+            log.info(f"Host [{host.name}] keys already exist at {host.keyfiles_dir}")
+        else:
+            log.warning(
+                f"Keyfiles directory '{host.keyfiles_dir}' exists, but one or more keys do not."
+            )
+            log.warning(
+                f"Private key ({host.private_key}) exists: {host.private_key.exists()}, Public key ({host.public_key}) exists: {host.public_key.exists()}"
+            )
+
+    log.info(f"Attempting to copy SSH key to {host.hostname}")
+    copy_res = copy_ssh_keys(host=host)
+
+    return copy_res
+
+
 if __name__ == "__main__":
     init_logger(sinks=[LoguruSinkStdOut(level=app_settings.log_level).as_dict()])
 
@@ -28,40 +56,9 @@ if __name__ == "__main__":
     dbg_hosts(hosts)
 
     for host in hosts:
-        log.debug(f"Working on host [{host.name}]")
+        gen_copy_res = gen_copy_ssh_keys(host=host)
 
-        if not host.keyfiles_dir.exists():
-            log.info(
-                f"Host keyfiles do not exist at {host.keyfiles_dir}. Generating keys."
-            )
-            gen_keys_res = generate_keys(host.private_key)
-
-            if not gen_keys_res:
-                log.error(f"Unable to generate SSH keys")
-                exit(1)
-
+        if gen_copy_res:
+            test_conn_res = sshlib.test_connection(host=host)
         else:
-            log.info(
-                f"Host [{host.name}] keyfile directory exists at {host.keyfiles_dir}"
-            )
-            if host.private_key.exists() and host.public_key.exists():
-                log.info(
-                    f"Host [{host.name}] keys already exist at {host.keyfiles_dir}"
-                )
-            else:
-                log.warning(
-                    f"Keyfiles directory '{host.keyfiles_dir}' exists, but one or more keys do not."
-                )
-                log.warning(
-                    f"Private key ({host.private_key}) exists: {host.private_key.exists()}, Public key ({host.public_key}) exists: {host.public_key.exists()}"
-                )
-
-        log.info(f"Attempting to copy SSH key to {host.hostname}")
-        copy_ssh_keys(host=host)
-
-        log.info(f"Testing connectivity with ls command")
-        try:
-            test_ssh = sshlib.ssh_exec(remote_host=host, cmd="ls -la")
-            log.debug(test_ssh.stdout)
-        except Exception as exc:
-            raise Exception(f"Unhandled exception performing ls test. Details: {exc}")
+            log.error(f"Error generating & copying SSH keys. Skipping connection test.")
