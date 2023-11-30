@@ -23,6 +23,7 @@ from utils import sshlib
 
 
 def gen_copy_ssh_keys(host: RemoteHostSSH | None = None) -> bool:
+    """Copy SSH keys to a provided RemoteHostSSH object."""
     if not host.keyfiles_dir.exists():
         log.info(f"Host keyfiles do not exist at {host.keyfiles_dir}. Generating keys.")
         gen_keys_res = generate_keys(host.private_key)
@@ -49,11 +50,11 @@ def gen_copy_ssh_keys(host: RemoteHostSSH | None = None) -> bool:
     return copy_res
 
 
-if __name__ == "__main__":
-    init_logger(sinks=[LoguruSinkStdOut(level=app_settings.log_level).as_dict()])
-
+def ssh_keygen_main(DEBUG: bool = False) -> None:
     hosts: list[RemoteHostSSH] = load_host_configs(search_dir=TARGETS_DIR)
-    dbg_hosts(hosts)
+
+    if DEBUG:
+        dbg_hosts(hosts)
 
     for host in hosts:
         gen_copy_res = gen_copy_ssh_keys(host=host)
@@ -62,3 +63,9 @@ if __name__ == "__main__":
             test_conn_res = sshlib.test_connection(host=host)
         else:
             log.error(f"Error generating & copying SSH keys. Skipping connection test.")
+
+
+if __name__ == "__main__":
+    init_logger(sinks=[LoguruSinkStdOut(level=app_settings.log_level).as_dict()])
+
+    ssh_keygen_main(DEBUG=True)

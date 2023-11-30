@@ -16,7 +16,6 @@ from typing import Union
 from provides.conf import app_settings
 from gen_ssh.constants import POST_GEN_MSG
 
-# from gen_ssh.domain import KeyPair
 from domain.ssh import RemoteHostSSH
 
 import subprocess
@@ -24,6 +23,18 @@ import getpass
 
 
 def generate_keys(key_output: Union[str, Path] | None = Path("id_rsa")) -> bool:
+    """Generate a public/private RSA SSH keyfile for use with Paramiko.
+
+    By default, outputs keys to the project's root, at ./id_rsa and ./id_rsa_pub.
+
+    Requires host OS to have OpenSSH installed so the ssh-keygen command can be used.
+
+    Params:
+    -------
+    - key_output (str/Path): Path to output RSA keys. By default, outputs to ./id_rsa.
+        Note: If providing a custom path, you must also include the private key's name (default: id_rsa).
+                A .pub public key will be created as well.
+    """
     if isinstance(key_output, str):
         key_output: Path = Path(key_output)
 
@@ -34,9 +45,11 @@ def generate_keys(key_output: Union[str, Path] | None = Path("id_rsa")) -> bool:
     if not key_output.parent.exists():
         key_output.parent.mkdir(parents=True, exist_ok=True)
 
+    ## Build ssh-keygen command
     cmd = f"ssh-keygen -t rsa -b 4096 -f {key_output} -N ''"
 
     try:
+        ## Execute ssh-keygen command
         process = subprocess.run(
             cmd,
             shell=True,
@@ -66,6 +79,12 @@ def generate_keys(key_output: Union[str, Path] | None = Path("id_rsa")) -> bool:
 
 
 def copy_ssh_keys(host: RemoteHostSSH = None) -> bool:
+    """Copy SSH public key to a remote host.
+
+    Params:
+    -------
+    - host (RemoteHostSSH): An initialized RemoteHostSSH object defining the remote host to copy keys to.
+    """
     if host is None:
         raise ValueError("Missing a RemoteHostSSH object")
 
@@ -74,7 +93,11 @@ def copy_ssh_keys(host: RemoteHostSSH = None) -> bool:
     else:
         cmd = f"ssh-copy-id -i {host.public_key} {host.user}@{host.hostname}"
 
+    if not host.private_key.exists():
+        raise FileNotFoundError(f"Could not find SSH key at {host.keyfiles_dir}")
+
     try:
+        ## Copy SSH key with ssh-copy-id. A prompt will appear for the remote user's password
         process = subprocess.Popen(
             cmd,
             shell=True,
