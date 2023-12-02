@@ -1,17 +1,27 @@
 from loguru import logger as log
 
+from typing import Union
+from pathlib import Path
+
 import stat
 import paramiko
 
 from domain.ssh import RemoteHostSSH, SSHCmdOutput, SSHSFTPOutput, SFTPEntry
 from red_utils.ext.context_managers.cli_spinners import SimpleSpinner
 
+from provides.exc import (
+    MissingRemoteHostSSHError,
+    MissingRemotePathError,
+    MissingCmdError,
+    MissingLocalPathError,
+)
+
 
 def get_ssh_client(
     remote_host: RemoteHostSSH = None, missing_host_policy=paramiko.AutoAddPolicy()
 ) -> paramiko.SSHClient:
     if remote_host is None:
-        raise ValueError("Missing RemoteHostSSH object")
+        raise MissingRemoteHostSSHError
 
     try:
         ssh = paramiko.SSHClient()
@@ -29,7 +39,7 @@ def get_ssh_client(
 def get_sftp(host: RemoteHostSSH = None) -> paramiko.SFTPClient:
     """Connect to an initialized RemoteHostSSH object and get an SFTP client."""
     if host is None:
-        raise ValueError("Missing RemoteHostSSH object")
+        raise MissingRemoteHostSSHError
 
     ssh_client = get_ssh_client(remote_host=host)
 
@@ -59,8 +69,7 @@ def get_sftp(host: RemoteHostSSH = None) -> paramiko.SFTPClient:
             f"Unhandled exception connecting to {host.user}@{host.name}. Details: {exc}"
         )
 
-    log.info(f"Getting SFTPClient")
-
+    # log.info(f"Getting SFTPClient")
     try:
         sftp = ssh_client.open_sftp()
 
@@ -75,6 +84,11 @@ def ssh_exec(remote_host: RemoteHostSSH = None, cmd: str = None) -> SSHCmdOutput
     Builds an SSH client object, executes command, and returns an SSHCmdOutput object, which
     has .stdout and .stderr properties.
     """
+    if remote_host is None:
+        raise MissingRemoteHostSSHError
+    if cmd is None:
+        raise MissingCmdError
+
     ssh = get_ssh_client(remote_host=remote_host)
     target_host = remote_host.hostname
     target_port = remote_host.port
@@ -85,7 +99,7 @@ def ssh_exec(remote_host: RemoteHostSSH = None, cmd: str = None) -> SSHCmdOutput
 
     try:
         with SimpleSpinner(f"Executing command on remote: {cmd}"):
-            log.info("Opening SSH connection")
+            # log.info("Opening SSH connection")
             with ssh as ssh_client:
                 ssh_client.connect(
                     hostname=target_host,
@@ -137,6 +151,11 @@ def sftp_crawl(
     remote_host: RemoteHostSSH = None, remote_dir: str = None, recursive: bool = False
 ) -> SSHSFTPOutput:
     """Open SFTP connection, list all files/dirs in remote_dir."""
+    if remote_host is None:
+        raise MissingRemoteHostSSHError
+    if remote_dir is None:
+        raise MissingRemotePathError
+
     ssh = get_ssh_client(remote_host=remote_host)
     target_host = remote_host.hostname
     target_port = remote_host.port
@@ -257,9 +276,9 @@ def test_connection(
     cmd: str | None = "echo '[REMOTE CONNECTION TEST] Hostname:' $HOSTNAME",
 ) -> bool:
     if host is None:
-        raise ValueError("Missing RemoteHostSSH object")
+        raise MissingRemoteHostSSHError
     if cmd is None:
-        raise ValueError("Missing SSH command to test")
+        raise MissingCmdError
 
     log.info(f"Testing connectivity with hostname command")
     try:
@@ -283,13 +302,13 @@ def ensure_remote_path_exists(
 ) -> bool:
     """Run an mkdir command on a remote host to ensure a path exists."""
     if host is None:
-        raise ValueError("Missing a RemoteHostSSH object")
+        raise MissingRemoteHostSSHError
     if remote_path is None:
-        raise ValueError("Missing a remote path to check")
+        raise MissingRemotePathError
 
     cmd = f"mkdir -pv {remote_path}"
 
-    log.info(f"Running command: {cmd}")
+    log.info(f"[{host.name}] Running command: {cmd}")
 
     try:
         mkdir_res = ssh_exec(remote_host=host, cmd=cmd)
@@ -307,20 +326,18 @@ def check_remote_path_exists(
 ) -> bool:
     """Check if a path to a file/dir exists on a RemoteHostSSH object."""
     if host is None:
-        raise ValueError("Missing RemoteHostSSH object")
+        raise MissingRemoteHostSSHError
     if remote_path is None:
-        raise ValueError("Missing a remote path to check")
+        raise MissingRemotePathError
 
-    ssh = get_ssh_client(remote_host=host)
-
-    log.info(f"Checking if path {remote_path} exists on host {host.name}")
+    log.info(f"[{host.name}] Checking if path exists: {remote_path}")
     with get_sftp(host=host) as sftp_client:
         try:
             remote_exists = sftp_client.stat(remote_path)
             return True
 
         except IOError:
-            log.warning(f"Did not find path '{remote_path}' on host {host.name}")
+            log.warning(f"[{host.name}] Did not find path: '{remote_path}'")
 
             return False
 
@@ -331,3 +348,66 @@ def check_remote_path_exists(
             log.error(msg)
 
             return False
+
+
+def list_remote_files(host: RemoteHostSSH = None, remote_path: str = None) -> list[str]:
+    """Connect to a RemoteHostSSH object and list files in a remote_path."""
+    if host is None:
+        raise MissingRemoteHostSSHError
+    if remote_path is None:
+        raise MissingRemotePathError
+
+    log.info(f"[{host.name}] Listing files in dir: {remote_path}")
+    try:
+        with get_sftp(host=host) as sftp:
+            files: list[files] = sftp.listdir()
+
+    except Exception as exc:
+        msg = Exception(
+            f"[{host.name}] Unhandled exception listing files in remote dir: {remote_path}. Details: {exc}"
+        )
+        log.error(msg)
+
+        raise msg
+
+    if files is not None and len(files) > 0:
+        log.debug(
+            f"[{host.name}] Found [{len(files)}] files in remote dir: {remote_path}"
+        )
+
+    else:
+        log.debug(f"[{host.name}] No files found in remote dir: {remote_path}")
+
+    return files
+
+
+def copy_from_remote(
+    host: RemoteHostSSH = None,
+    remote_path: str = None,
+    local_path: Union[str, Path] = None,
+) -> bool:
+    if host is None:
+        raise MissingRemoteHostSSHError
+    if remote_path is None:
+        raise MissingRemotePathError
+    if local_path is None:
+        raise MissingLocalPathError
+
+    log.info(f"[{host.name}] Listing files in dir: {remote_path}")
+    files = list_remote_files(host=host, remote_path=remote_path)
+
+    if files is not None:
+        if len(files) > 0:
+            if Path(remote_path).name in files:
+                log.info(
+                    f"[{host.name}] Success: Found remote file '{Path(remote_path).name}' in directory {Path(remote_path).parent}"
+                )
+            else:
+                log.warning(
+                    f"[{host.name}] Did not find file '{Path(remote_path).name}' in directory {Path(remote_path).parent}"
+                )
+
+                return None
+
+    else:
+        return None

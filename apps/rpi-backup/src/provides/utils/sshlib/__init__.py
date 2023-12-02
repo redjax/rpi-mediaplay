@@ -6,4 +6,5 @@ from .operations import (
     get_sftp,
     get_ssh_client,
     check_remote_path_exists,
+    list_remote_files,
 )

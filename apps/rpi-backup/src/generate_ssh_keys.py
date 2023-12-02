@@ -17,9 +17,9 @@ from loguru import logger as log
 from provides.conf import app_settings
 from red_utils.ext.loguru_utils import LoguruSinkStdOut, init_logger
 
-from utils.path_utils import load_host_configs
-from utils.debug_utils import dbg_hosts
-from utils import sshlib
+from provides.utils.path_utils import load_host_configs
+from provides.utils.debug_utils import dbg_hosts
+from provides.utils import sshlib
 
 
 def gen_copy_ssh_keys(host: RemoteHostSSH | None = None) -> bool:
